@@ -176,6 +176,7 @@ async function handleDownload() {
               v-if="previewUrl"
               :src="previewUrl"
               sandbox="allow-scripts"
+              credentialless
               style="flex:1;width:100%;border:none;background:#fff;min-height:0;"
               title="Aperçu du site généré"
             ></iframe>

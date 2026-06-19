@@ -14,7 +14,12 @@ Règles de contenu et de structure HTML :
 - Un titre principal (h1), une description, et au moins deux sections de contenu
   distinctes, avec un vrai contenu rédigé en lien avec le thème (jamais de texte
   de remplissage générique type "lorem ipsum").
-- Toute image utilise un attribut alt descriptif.
+- INTERDIT ABSOLU : n'utilise aucune image externe (picsum.photos, unsplash.com,
+  placeholder.com, lorempixel.com, via.placeholder.com, ou tout autre service
+  d'images en ligne). Si aucune image n'est fournie par l'élève, remplace les
+  visuels par des fonds CSS (dégradés, couleurs unies, motifs SVG inline). Si des
+  images sont fournies, utilise-les avec src="images/<nom_du_fichier>".
+- Toute balise <img> utilise un attribut alt descriptif.
 
 Règles de design CSS (le point le plus important) :
 - Choisis une palette de 4 à 6 couleurs cohérentes et justifiées par le thème
