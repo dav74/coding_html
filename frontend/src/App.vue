@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useSiteGenerator } from "./composables/useSiteGenerator";
 import type { UploadedImage } from "./composables/useSiteGenerator";
 import { downloadZip } from "./composables/useDownloadZip";
@@ -11,35 +11,44 @@ const zipping = ref(false);
 const serverWaking = ref(false);
 const loadingLong = ref(false);
 const showPreview = ref(false);
+const previewUrl = ref<string | null>(null);
 let loadingTimer: ReturnType<typeof setTimeout> | null = null;
 
-const LINK_GUARD = `<script>
-(function(){
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a');
-    if (!a) return;
-    e.preventDefault();
-    var href = (a.getAttribute('href') || '').trim();
-    if (href.startsWith('#') && href.length > 1) {
-      var target = document.querySelector(href);
-      if (target) target.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, true);
-})();
-<\/script>`;
-
-const srcdoc = computed(() => {
+function buildPreviewHtml(): string {
   if (!html.value) return "";
-  return html.value
-    .replace(
-      /<link[^>]+rel=["']stylesheet["'][^>]*>/i,
-      `<style>${css.value}</style>`
-    )
-    .replace(/<\/body>/i, `${LINK_GUARD}</body>`);
-});
+  const withCss = html.value.replace(
+    /<link[^>]+rel=["']stylesheet["'][^>]*>/i,
+    `<style>${css.value}</style>`
+  );
+  const linkGuard = [
+    "<scr" + "ipt>",
+    "(function(){",
+    "  document.addEventListener('click',function(e){",
+    "    var a=e.target.closest('a'); if(!a) return;",
+    "    e.preventDefault();",
+    "    var h=(a.getAttribute('href')||'').trim();",
+    "    if(h.startsWith('#')&&h.length>1){",
+    "      var t=document.querySelector(h);",
+    "      if(t) t.scrollIntoView({behavior:'smooth'});",
+    "    }",
+    "  },true);",
+    "})();",
+    "</" + "script>",
+  ].join("\n");
+  return withCss.replace(/<\/body>/i, `${linkGuard}</body>`);
+}
 
-function openPreview() { showPreview.value = true; }
-function closePreview() { showPreview.value = false; }
+function openPreview() {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+  const blob = new Blob([buildPreviewHtml()], { type: "text/html;charset=utf-8" });
+  previewUrl.value = URL.createObjectURL(blob);
+  showPreview.value = true;
+}
+
+function closePreview() {
+  showPreview.value = false;
+  if (previewUrl.value) { URL.revokeObjectURL(previewUrl.value); previewUrl.value = null; }
+}
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") closePreview();
@@ -147,30 +156,29 @@ async function handleDownload() {
         <Teleport to="body">
           <div
             v-if="showPreview"
-            class="fixed inset-0 z-50 flex flex-col"
+            style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;"
           >
             <!-- Barre de titre -->
-            <div class="flex items-center justify-between px-5 py-3 bg-slate-900 text-white shrink-0">
-              <span class="text-sm font-semibold">Aperçu du site généré</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.25rem;background:#0f172a;color:#fff;flex-shrink:0;">
+              <span style="font-size:0.875rem;font-weight:600;">Aperçu du site généré</span>
               <button
                 @click="closePreview"
-                class="rounded-lg p-1.5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/50 transition"
+                style="padding:0.375rem;border-radius:0.5rem;background:transparent;border:none;color:#fff;cursor:pointer;line-height:0;"
                 aria-label="Fermer l'aperçu"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <!-- Conteneur iframe : occupe tout l'espace restant -->
-            <div class="relative flex-1">
-              <iframe
-                :srcdoc="srcdoc"
-                sandbox="allow-same-origin allow-scripts"
-                class="absolute inset-0 w-full h-full border-0 bg-white"
-                title="Aperçu du site généré"
-              ></iframe>
-            </div>
+            <!-- iframe -->
+            <iframe
+              v-if="previewUrl"
+              :src="previewUrl"
+              sandbox="allow-scripts"
+              style="flex:1;width:100%;border:none;background:#fff;min-height:0;"
+              title="Aperçu du site généré"
+            ></iframe>
           </div>
         </Teleport>
 

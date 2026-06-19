@@ -216,10 +216,7 @@ async def design_review(state: GraphState) -> GraphState:
         return {**state, "review_approved": True, "review_feedback": []}
 
 
-def _review_router(state: GraphState) -> Literal["refine", "finalize"]:
-    if not state.get("review_approved", True):
-        if state.get("retry_count", 0) < state.get("max_retries", 2):
-            return "refine"
+def _review_router(state: GraphState) -> Literal["finalize"]:
     return "finalize"
 
 

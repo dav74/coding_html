@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, watch, nextTick } from "vue";
 import hljs from "highlight.js/lib/core";
 import hljsHtml from "highlight.js/lib/languages/xml";
 import hljsCss from "highlight.js/lib/languages/css";
@@ -15,9 +15,18 @@ const props = defineProps<{
 }>();
 
 const copied = ref(false);
+const highlighted = ref("");
 
-const highlighted = computed(() =>
-  props.code ? hljs.highlight(props.code, { language: props.language }).value : ""
+watch(
+  () => props.code,
+  async (code) => {
+    if (!code) { highlighted.value = ""; return; }
+    // Laisser Vue commiter le DOM (spinner caché, résultats affichés)
+    // avant de lancer le calcul bloquant de hljs.
+    await nextTick();
+    highlighted.value = hljs.highlight(code, { language: props.language }).value;
+  },
+  { immediate: true }
 );
 
 function copy() {
