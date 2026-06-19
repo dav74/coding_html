@@ -29,19 +29,27 @@ def _extract_site_from_text(text: str) -> SiteOutput | None:
     except (json.JSONDecodeError, TypeError):
         pass
 
-    # 2. Objet JSON enfoui dans du texte
-    m = re.search(r'\{[^{}]*"html"[^{}]*"css"[^{}]*\}', text, re.DOTALL)
-    if not m:
-        m = re.search(r'\{[^{}]*"css"[^{}]*"html"[^{}]*\}', text, re.DOTALL)
-    if m:
+    # 2. Bloc de code contenant du JSON (```json ... ``` ou ``` ... ```)
+    for block_m in re.finditer(r"```(?:\w+)?\s*([\s\S]*?)\s*```", text):
         try:
-            data = json.loads(m.group())
+            data = json.loads(block_m.group(1))
             if "html" in data and "css" in data:
                 return SiteOutput(html=data["html"], css=data["css"])
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # 3. Blocs Markdown ```html / ```css
+    # 3. JSON brut quelque part dans le texte (recherche du premier { jusqu'au dernier })
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            data = json.loads(text[start:end + 1])
+            if "html" in data and "css" in data:
+                return SiteOutput(html=data["html"], css=data["css"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # 4. Blocs Markdown séparés ```html / ```css
     html_m = re.search(r"```html\s*(.*?)\s*```", text, re.DOTALL)
     css_m = re.search(r"```css\s*(.*?)\s*```", text, re.DOTALL)
     if html_m and css_m:
@@ -61,14 +69,28 @@ def _extract_review_from_text(text: str) -> ReviewOutput | None:
 
 
 async def _invoke_generator(messages: list) -> SiteOutput:
-    result = await generator_llm.ainvoke(messages)
-    if result["parsed"] is not None:
-        return result["parsed"]
-    raw_text = result["raw"].content if hasattr(result["raw"], "content") else str(result["raw"])
+    raw_text: str | None = None
+    try:
+        result = await generator_llm.ainvoke(messages)
+        if result["parsed"] is not None:
+            return result["parsed"]
+        raw = result["raw"]
+        raw_text = raw.content if hasattr(raw, "content") else str(raw)
+    except Exception as e:
+        # include_raw=True ne prévient pas toujours l'exception ;
+        # on tente d'extraire le texte brut depuis l'input_value de Pydantic
+        if hasattr(e, "errors") and callable(e.errors):
+            for err in e.errors():
+                if isinstance(err.get("input"), str):
+                    raw_text = err["input"]
+                    break
+        if raw_text is None:
+            raise ValueError("Impossible d'extraire HTML/CSS de la réponse du modèle.") from e
+
     extracted = _extract_site_from_text(raw_text)
     if extracted:
         return extracted
-    raise ValueError(f"Impossible d'extraire HTML/CSS de la réponse du modèle.")
+    raise ValueError("Impossible d'extraire HTML/CSS de la réponse du modèle.")
 
 
 async def _invoke_reviewer(messages: list) -> ReviewOutput:

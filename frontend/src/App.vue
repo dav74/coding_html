@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useSiteGenerator } from "./composables/useSiteGenerator";
 import type { UploadedImage } from "./composables/useSiteGenerator";
 import { downloadZip } from "./composables/useDownloadZip";
@@ -10,7 +10,42 @@ const { html, css, responseImages, loading, error, generate } = useSiteGenerator
 const zipping = ref(false);
 const serverWaking = ref(false);
 const loadingLong = ref(false);
+const showPreview = ref(false);
 let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+
+const LINK_GUARD = `<script>
+(function(){
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a');
+    if (!a) return;
+    e.preventDefault();
+    var href = (a.getAttribute('href') || '').trim();
+    if (href.startsWith('#') && href.length > 1) {
+      var target = document.querySelector(href);
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, true);
+})();
+<\/script>`;
+
+const srcdoc = computed(() => {
+  if (!html.value) return "";
+  return html.value
+    .replace(
+      /<link[^>]+rel=["']stylesheet["'][^>]*>/i,
+      `<style>${css.value}</style>`
+    )
+    .replace(/<\/body>/i, `${LINK_GUARD}</body>`);
+});
+
+function openPreview() { showPreview.value = true; }
+function closePreview() { showPreview.value = false; }
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") closePreview();
+}
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 onMounted(async () => {
   const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -82,8 +117,19 @@ async function handleDownload() {
 
       <!-- Résultats -->
       <template v-if="html && !loading">
-        <!-- Bouton ZIP -->
-        <div class="flex justify-center">
+        <!-- Boutons d'action -->
+        <div class="flex flex-wrap justify-center gap-3">
+          <button
+            @click="openPreview"
+            class="inline-flex items-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Visualiser le site
+          </button>
+
           <button
             @click="handleDownload"
             :disabled="zipping"
@@ -96,6 +142,37 @@ async function handleDownload() {
             {{ zipping ? "Préparation du ZIP…" : "Télécharger le site complet (.zip)" }}
           </button>
         </div>
+
+        <!-- Modale d'aperçu -->
+        <Teleport to="body">
+          <div
+            v-if="showPreview"
+            class="fixed inset-0 z-50 flex flex-col"
+          >
+            <!-- Barre de titre -->
+            <div class="flex items-center justify-between px-5 py-3 bg-slate-900 text-white shrink-0">
+              <span class="text-sm font-semibold">Aperçu du site généré</span>
+              <button
+                @click="closePreview"
+                class="rounded-lg p-1.5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/50 transition"
+                aria-label="Fermer l'aperçu"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <!-- Conteneur iframe : occupe tout l'espace restant -->
+            <div class="relative flex-1">
+              <iframe
+                :srcdoc="srcdoc"
+                sandbox="allow-same-origin allow-scripts"
+                class="absolute inset-0 w-full h-full border-0 bg-white"
+                title="Aperçu du site généré"
+              ></iframe>
+            </div>
+          </div>
+        </Teleport>
 
         <!-- Code HTML + CSS côte à côte -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
