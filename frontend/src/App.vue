@@ -130,7 +130,7 @@ async function handleDownload() {
         <div class="flex flex-wrap justify-center gap-3">
           <button
             @click="openPreview"
-            class="inline-flex items-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition"
+            class="inline-flex items-center gap-2.5 rounded-xl bg-slate-700 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -142,7 +142,7 @@ async function handleDownload() {
           <button
             @click="handleDownload"
             :disabled="zipping"
-            class="inline-flex items-center gap-2.5 rounded-xl bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            class="inline-flex items-center gap-2.5 rounded-xl bg-slate-500 px-7 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             <span v-if="zipping" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block"></span>
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

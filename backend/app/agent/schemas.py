@@ -8,13 +8,6 @@ class SiteOutput(BaseModel):
     css: str = Field(description="Contenu complet de style.css, sans aucune balise HTML.")
 
 
-class ReviewOutput(BaseModel):
-    status: Literal["approved", "needs_revision"]
-    feedback: list[str] = Field(
-        description="Remarques concrètes et actionnables ; jamais vide, même si approved."
-    )
-
-
 class ImageInfo(TypedDict):
     filename: str
     description: str
@@ -31,4 +24,3 @@ class GraphState(TypedDict):
     status: Literal["running", "done", "failed"]
     error_message: Optional[str]
     validation_passed: bool
-    review_approved: bool

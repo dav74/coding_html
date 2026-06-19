@@ -4,14 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.agent.graph import compiled_graph
 from app.agent.schemas import GraphState, ImageInfo
 from app.core.config import settings
+from app.core.limiter import limiter
 
-limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 Mo par image
@@ -85,7 +83,6 @@ async def generate_site(
         "status": "running",
         "error_message": None,
         "validation_passed": False,
-        "review_approved": False,
     }
 
     try:

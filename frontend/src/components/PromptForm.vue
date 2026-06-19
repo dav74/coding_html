@@ -2,7 +2,7 @@
 import { ref, onUnmounted } from "vue";
 import type { UploadedImage } from "../composables/useSiteGenerator";
 
-const props = defineProps<{ loading: boolean }>();
+defineProps<{ loading: boolean }>();
 
 const emit = defineEmits<{
   generate: [prompt: string, images: UploadedImage[]];
@@ -60,7 +60,7 @@ function submit() {
           <span class="font-normal text-slate-400">(optionnel)</span>
         </span>
         <label
-          class="cursor-pointer inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition"
+          class="cursor-pointer inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition"
           :class="{ 'opacity-50 pointer-events-none': loading }"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@ function submit() {
     <button
       type="submit"
       :disabled="loading || !prompt.trim()"
-      class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+      class="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
     >
       <span v-if="loading" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block"></span>
       {{ loading ? "Génération en cours…" : "Générer le site" }}

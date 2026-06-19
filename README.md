@@ -18,7 +18,7 @@ cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Éditez .env et renseignez OPENROUTER_API_KEY et CLASSROOM_SECRET
+# Éditez .env et renseignez OPENROUTER_API_KEY
 uvicorn app.main:app --reload
 ```
 
@@ -46,7 +46,6 @@ L'interface sera disponible sur `http://localhost:5173`.
 | `MODEL_NAME` | Modèle utilisé (défaut : `deepseek/deepseek-v4-flash`) |
 | `FRONTEND_ORIGIN` | Origine autorisée pour CORS (défaut : `http://localhost:5173`) |
 | `MAX_RETRIES` | Nombre maximum de relances de l'agent (défaut : `2`) |
-| `CLASSROOM_SECRET` | Code de classe (optionnel, frein anti-abus) |
 
 ### `frontend/.env`
 
@@ -77,5 +76,5 @@ Déployer le backend sur Render/Railway/Fly.io, configurer `VITE_API_BASE_URL` v
 
 ## API
 
-- `POST /api/generate` — corps `{"prompt": "..."}`, en-tête `X-Classroom-Key` si activé
+- `POST /api/generate` — corps `{"prompt": "..."}` (multipart/form-data)
 - `GET /api/health` — vérification de disponibilité

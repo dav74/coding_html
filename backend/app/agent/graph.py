@@ -5,8 +5,8 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 
-from app.agent.prompts import GENERATOR_SYSTEM_PROMPT, REVIEWER_SYSTEM_PROMPT
-from app.agent.schemas import GraphState, SiteOutput, ReviewOutput
+from app.agent.prompts import GENERATOR_SYSTEM_PROMPT
+from app.agent.schemas import GraphState, SiteOutput
 from app.core.config import settings
 
 llm = ChatOpenAI(
@@ -17,7 +17,6 @@ llm = ChatOpenAI(
 )
 
 generator_llm = llm.with_structured_output(SiteOutput, include_raw=True)
-reviewer_llm = llm.with_structured_output(ReviewOutput, include_raw=True)
 
 
 def _extract_site_from_text(text: str) -> SiteOutput | None:
@@ -58,16 +57,6 @@ def _extract_site_from_text(text: str) -> SiteOutput | None:
     return None
 
 
-def _extract_review_from_text(text: str) -> ReviewOutput | None:
-    try:
-        data = json.loads(text)
-        if "status" in data and "feedback" in data:
-            return ReviewOutput(status=data["status"], feedback=data["feedback"])
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return None
-
-
 async def _invoke_generator(messages: list) -> SiteOutput:
     raw_text: str | None = None
     try:
@@ -91,17 +80,6 @@ async def _invoke_generator(messages: list) -> SiteOutput:
     if extracted:
         return extracted
     raise ValueError("Impossible d'extraire HTML/CSS de la réponse du modèle.")
-
-
-async def _invoke_reviewer(messages: list) -> ReviewOutput:
-    result = await reviewer_llm.ainvoke(messages)
-    if result["parsed"] is not None:
-        return result["parsed"]
-    raw_text = result["raw"].content if hasattr(result["raw"], "content") else str(result["raw"])
-    extracted = _extract_review_from_text(raw_text)
-    if extracted:
-        return extracted
-    return ReviewOutput(status="approved", feedback=["Relecture automatique indisponible."])
 
 
 def _image_context(images: list) -> str:
@@ -188,59 +166,14 @@ def validate(state: GraphState) -> GraphState:
     return {**state, "validation_passed": True}
 
 
-def _validate_router(state: GraphState) -> Literal["generate", "fail", "design_review"]:
+def _validate_router(state: GraphState) -> Literal["generate", "fail", "finalize"]:
     if state.get("status") == "failed":
         return "fail"
     if not state.get("validation_passed", False):
         if state.get("retry_count", 0) < state.get("max_retries", 2):
             return "generate"
         return "fail"
-    return "design_review"
-
-
-async def design_review(state: GraphState) -> GraphState:
-    try:
-        result = await _invoke_reviewer([
-            {"role": "system", "content": REVIEWER_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"HTML :\n{state['html']}\n\nCSS :\n{state['css']}",
-            },
-        ])
-        return {
-            **state,
-            "review_feedback": result.feedback,
-            "review_approved": result.status == "approved",
-        }
-    except Exception:
-        return {**state, "review_approved": True, "review_feedback": []}
-
-
-def _review_router(state: GraphState) -> Literal["finalize"]:
     return "finalize"
-
-
-async def refine(state: GraphState) -> GraphState:
-    feedback_lines = "\n".join(f"- {f}" for f in state.get("review_feedback", []))
-    user_msg = (
-        f"Voici le HTML et CSS actuels :\n\nHTML:\n{state['html']}\n\nCSS:\n{state['css']}\n\n"
-        f"Le directeur artistique demande ces corrections :\n{feedback_lines}\n\n"
-        f"Corrige précisément ces points et produis la version améliorée."
-    )
-
-    try:
-        result = await _invoke_generator([
-            {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
-        ])
-        return {
-            **state,
-            "html": result.html,
-            "css": result.css,
-            "retry_count": state.get("retry_count", 0) + 1,
-        }
-    except Exception:
-        return {**state, "retry_count": state.get("retry_count", 0) + 1}
 
 
 def finalize(state: GraphState) -> GraphState:
@@ -260,8 +193,6 @@ def build_graph() -> StateGraph:
 
     graph.add_node("generate", generate)
     graph.add_node("validate", validate)
-    graph.add_node("design_review", design_review)
-    graph.add_node("refine", refine)
     graph.add_node("finalize", finalize)
     graph.add_node("fail", fail)
 
@@ -273,18 +204,9 @@ def build_graph() -> StateGraph:
         {
             "generate": "generate",
             "fail": "fail",
-            "design_review": "design_review",
-        },
-    )
-    graph.add_conditional_edges(
-        "design_review",
-        _review_router,
-        {
-            "refine": "refine",
             "finalize": "finalize",
         },
     )
-    graph.add_edge("refine", "validate")
     graph.add_edge("finalize", END)
     graph.add_edge("fail", END)
 
