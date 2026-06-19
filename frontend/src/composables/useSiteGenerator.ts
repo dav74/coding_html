@@ -26,7 +26,7 @@ export function useSiteGenerator() {
   const loading = ref(false);
   const error = ref("");
 
-  async function generate(prompt: string, images: UploadedImage[]) {
+  async function generate(prompt: string, images: UploadedImage[]): Promise<void> {
     if (!prompt.trim()) {
       error.value = "Le prompt ne peut pas être vide.";
       return;

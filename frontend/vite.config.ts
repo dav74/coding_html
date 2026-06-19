@@ -5,4 +5,9 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   base: "/informatiquelycee/coding_html/",
+  server: {
+    proxy: {
+      "/api": "https://coding-html.onrender.com",
+    },
+  },
 });

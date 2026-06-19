@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useSiteGenerator } from "./composables/useSiteGenerator";
 import type { UploadedImage } from "./composables/useSiteGenerator";
 import { downloadZip } from "./composables/useDownloadZip";
@@ -8,9 +8,29 @@ import CodePanel from "./components/CodePanel.vue";
 
 const { html, css, responseImages, loading, error, generate } = useSiteGenerator();
 const zipping = ref(false);
+const serverWaking = ref(false);
+const loadingLong = ref(false);
+let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+
+onMounted(async () => {
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
+  serverWaking.value = true;
+  try {
+    await fetch(`${apiBase}/api/health`);
+  } catch {
+    // silencieux — l'erreur éventuelle sera gérée à la génération
+  } finally {
+    serverWaking.value = false;
+  }
+});
 
 function handleGenerate(prompt: string, images: UploadedImage[]) {
-  generate(prompt, images);
+  loadingLong.value = false;
+  loadingTimer = setTimeout(() => { loadingLong.value = true; }, 20_000);
+  generate(prompt, images).finally(() => {
+    if (loadingTimer) clearTimeout(loadingTimer);
+    loadingLong.value = false;
+  });
 }
 
 async function handleDownload() {
@@ -25,6 +45,13 @@ async function handleDownload() {
 
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <!-- Bandeau de réveil serveur -->
+    <div
+      v-if="serverWaking"
+      class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-700"
+    >
+      Connexion au serveur en cours…
+    </div>
     <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       <!-- Formulaire -->
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -48,6 +75,9 @@ async function handleDownload() {
         <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
         <p class="text-sm text-slate-500">L'agent IA génère et révise votre site…</p>
         <p class="text-xs text-slate-400">Cela peut prendre 20 à 40 secondes.</p>
+        <p v-if="loadingLong" class="text-xs text-amber-600 mt-1">
+          Le serveur démarre après une période d'inactivité — encore 20-30 secondes…
+        </p>
       </div>
 
       <!-- Résultats -->
